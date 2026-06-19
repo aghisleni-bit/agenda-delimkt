@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Deli Marketing</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*{box-sizing:border-box;-webkit-font-smoothing:antialiased}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8fafc}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+<!-- Supabase: login por link magico + sincronizacao na nuvem -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+'use strict';
+const {useState,useEffect,useRef,createContext,useContext} = React;
+const html = htm.bind(React.createElement);
+
+// ── SUPABASE: LOGIN + SINCRONIZACAO NA NUVEM ─────────────────────────────────
+// >>> PREENCHA OS DOIS BLOCOS ABAIXO seguindo o passo a passo. <<<
+
+// 1) Project URL + chave "anon public" (Supabase > Project Settings > API).
+const SUPABASE_URL      = "https://kjxhnhscwioyuawscmle.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_2BLCWjTV2isxmDjotPTRnQ_5rOdlw2F";
+
+// 2) Os 3 emails do Workspace que podem entrar (tudo minusculo).
+const ALLOWED_EMAILS = [
+  "aghisleni@deli.com.br",   // Ana
+  "bbronzatti@deli.com.br",  // Barbara
+  "rcorrea@deli.com.br",     // Renata
+];
+
+const CONFIG_OK = SUPABASE_URL.indexOf("COLE_AQUI") < 0 && SUPABASE_ANON_KEY.indexOf("COLE_AQUI") < 0;
+const ROW_ID = "deli"; // linha unica compartilhada pelo time
+let sb=null;
+if(CONFIG_OK){
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+function emailAutorizado(e){
+  return ALLOWED_EMAILS.map(function(x){return x.toLowerCase();}).indexOf((e||'').trim().toLowerCase())>=0;
+}
+const UserCtx = createContext(null);
+
+// ── SEED ─────────────────────────────────────────────────────────────────────
+
+const seedData = {
+  areas:[
+    {id:'ads',          nome:'Campanhas Pagas (Ads)',                    ordem:1,  tipo:'marketing'},
+    {id:'youtube',      nome:'Conteudo YouTube',                         ordem:2,  tipo:'marketing'},
+    {id:'produto',      nome:'Comunicacao de Produto',                   ordem:3,  tipo:'marketing'},
+    {id:'whatsapp',     nome:'WhatsApp',                                 ordem:4,  tipo:'marketing'},
+    {id:'redes',        nome:'Redes Sociais',                            ordem:5,  tipo:'marketing'},
+    {id:'linkedin',     nome:'LinkedIn',                                 ordem:6,  tipo:'marketing'},
+    {id:'inteligencia', nome:'Inteligencia de Mercado',                  ordem:7,  tipo:'marketing'},
+    {id:'distribuicao', nome:'Distribuicao e Amplificacao de Conteudo',  ordem:8,  tipo:'marketing'},
+    {id:'blog',         nome:'Blog',                                     ordem:9,  tipo:'marketing'},
+    {id:'e1', nome:'Acao de Retencao (Semana 1)',                        ordem:10, tipo:'engagement'},
+    {id:'e2', nome:'Regua de reativacao win-back (Sem. 2 e 3)',          ordem:11, tipo:'engagement'},
+    {id:'e3', nome:'Analise de Churn (Semana 4)',                        ordem:12, tipo:'engagement'},
+    {id:'e4', nome:'Programa Voz do Cliente (continuo)',                 ordem:13, tipo:'engagement'},
+  ],
+  tarefas:[
+    {id:'t1', areaId:'ads',grupo:'Rodando agora',titulo:'Campanha Junina',status:'fazendo',prioridade:'alta',responsavel:'',estagio:'',observacoes:'Ja no ar. Encerra 31/07. Nao e um a fazer.',proximosPassos:'',prazo:'2026-07-31',tags:[]},
+    {id:'t2', areaId:'ads',grupo:'Rodando agora',titulo:'Campanha Copa',status:'fazendo',prioridade:'alta',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',prazo:'2026-07-15',tags:[]},
+    {id:'t3', areaId:'ads',grupo:'Rodando agora',titulo:'Campanha Calculadora de Margem',status:'fazendo',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t4', areaId:'ads',grupo:'Pendencias',titulo:'Campanha Copa: criar novos criativos',status:'a_fazer',prioridade:'alta',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t5', areaId:'ads',grupo:'Pendencias',titulo:'Revisitar Calculadora de Margem: novos criativos, copies e revisao de segmentacao',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t6', areaId:'ads',grupo:'Criar',titulo:'Campanhas de funcionalidades do sistema: definir funcionalidades prioritarias e criativos',status:'a_fazer',prioridade:'alta',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t7', areaId:'ads',grupo:'Criar',titulo:'Campanha Financeira: criativos, estrategia, landing page e execucao',status:'a_fazer',prioridade:'alta',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t8', areaId:'ads',grupo:'Futuras',titulo:'Webinars IA em agosto: estrategia de captacao, landing page, automacoes e ads',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',prazo:'2026-08-01',tags:[]},
+    {id:'t9', areaId:'youtube',grupo:'Curto prazo',titulo:'Gravar video Meta Pixel',status:'a_fazer',prioridade:'alta',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t10',areaId:'youtube',grupo:'Curto prazo',titulo:'Editar video Meta Pixel',status:'a_fazer',prioridade:'alta',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t11',areaId:'youtube',grupo:'Curto prazo',titulo:'Publicar video Meta Pixel',status:'a_fazer',prioridade:'alta',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t12',areaId:'youtube',grupo:'Estrutural',titulo:'Mapear lacunas do canal: funcionalidades sem video, duvidas sem conteudo, criar roadmap',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t33',areaId:'youtube',grupo:'Curto prazo',titulo:'Como ativar o agente de vendas IA no WhatsApp',status:'a_fazer',prioridade:'alta',responsavel:'Renata',estagio:'Gravando',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t13',areaId:'produto',grupo:'Newsletter de Novidades',titulo:'Finalizar modelo padrao: estrutura fixa e processo recorrente de envio',status:'a_fazer',prioridade:'alta',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t14',areaId:'produto',grupo:'Novidades do Sistema',titulo:'Organizar fluxo de comunicacao e garantir divulgacao consistente das releases',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t15',areaId:'whatsapp',grupo:'Canal Oficial',titulo:'Criar estrategia editorial: 1 mensagem por dia integrando todos os canais',status:'a_fazer',prioridade:'alta',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t16',areaId:'whatsapp',grupo:'Estrutura',titulo:'Definir categorias de conteudo e criar calendario recorrente',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t17',areaId:'redes',grupo:'Planejamento',titulo:'Finalizar planejamento de Junho',status:'fazendo',prioridade:'alta',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',prazo:'2026-06-30',tags:[]},
+    {id:'t18',areaId:'redes',grupo:'Planejamento',titulo:'Planejar Julho completo',status:'a_fazer',prioridade:'alta',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',prazo:'2026-07-01',tags:[]},
+    {id:'t19',areaId:'redes',grupo:'Entregaveis recorrentes',titulo:'Instagram, Reels, Stories, campanhas sazonais e datas comerciais',status:'fazendo',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t20',areaId:'linkedin',grupo:'Estrategia',titulo:'Criar novo plano editorial do LinkedIn',status:'a_fazer',prioridade:'alta',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t21',areaId:'linkedin',grupo:'Execucao',titulo:'Cumprir meta de publicacoes, melhorar consistencia e posicionamento institucional',status:'fazendo',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t22',areaId:'inteligencia',grupo:'Benchmark',titulo:'Levantar anuncios ativos dos concorrentes: formatos, mensagens e ofertas',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t23',areaId:'inteligencia',grupo:'Analise',titulo:'Analisar o que performa, diferenciais e hipoteses para testes',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t24',areaId:'inteligencia',grupo:'Entregavel',titulo:'Criar biblioteca de referencias, relatorio de aprendizados e lista de hipoteses',status:'a_fazer',prioridade:'baixa',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t25',areaId:'distribuicao',grupo:'Live Controle Financeiro',titulo:'Assistir live, mapear melhores momentos e criar biblioteca de clipes',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t26',areaId:'distribuicao',grupo:'Live Controle Financeiro',titulo:'Transformar clipes em Reels, Shorts, posts LinkedIn, carrosseis, Stories e newsletter',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t27',areaId:'distribuicao',grupo:'Roadmap Multicanal',titulo:'Para cada campanha: narrativa, cronograma e distribuicao em todos os canais',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t28',areaId:'distribuicao',grupo:'CRM e Comunicacao Direta',titulo:'WhatsApp, SMS e Newsletter: estrategia, segmentacao, calendario e integracoes',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t34',areaId:'blog',titulo:'O efeito Copa no seu restaurante: o que muda no movimento durante o Mundial',status:'a_fazer',prioridade:'alta',responsavel:'Ana',estagio:'Escrevendo',observacoes:'Tendencia. Vai pro blog e tambem pro LinkedIn.',proximosPassos:'',prazo:'2026-06-23',tags:[]},
+    {id:'t35',areaId:'blog',titulo:'Agentes de IA no WhatsApp: como restaurantes atendem e vendem sem perder cliente',status:'a_fazer',prioridade:'alta',responsavel:'Ana',estagio:'Escrevendo',observacoes:'Gestao. LinkedIn sai na semana seguinte.',proximosPassos:'',prazo:'2026-06-25',tags:[]},
+    {id:'t36',areaId:'blog',titulo:'Cardapio de inverno: o que vende mais e como o frio muda o consumo no seu restaurante',status:'a_fazer',prioridade:'media',responsavel:'Ana',estagio:'Escrevendo',observacoes:'Sazonal. So blog.',proximosPassos:'',prazo:'2026-06-30',tags:[]},
+    {id:'t37',areaId:'blog',titulo:'Seu restaurante deu lucro ou so faturou? Entenda o DRE de forma simples',status:'a_fazer',prioridade:'media',responsavel:'Ana',estagio:'Escrevendo',observacoes:'Gestao. So blog.',proximosPassos:'',prazo:'2026-07-02',tags:[]},
+    {id:'t29',areaId:'e1',titulo:'Comunicacao de novidades do sistema para base ativa',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t30',areaId:'e2',titulo:'Mapear inativos, entender por que pararam, ouvir objecao e oferecer ajuda',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t31',areaId:'e3',titulo:'Analise e acoes previas a virada de pagamento e bloqueio',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+    {id:'t32',areaId:'e4',titulo:'Entrevistas curtas, NPS/CSAT, coleta de dores junto ao CS e report periodico para produto',status:'a_fazer',prioridade:'baixa',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',tags:[]},
+  ],
+  metasVolume:[
+    {id:'mv1',rotulo:'Posts Instagram',meta:12,feito:0,cor:'insta_face'},
+    {id:'mv2',rotulo:'Posts LinkedIn',meta:8,feito:0,cor:'linkedin'},
+    {id:'mv3',rotulo:'Artigos de Blog',meta:8,feito:0,cor:'blog'},
+    {id:'mv4',rotulo:'Reels',meta:4,feito:0,cor:'insta_face'},
+    {id:'mv5',rotulo:'Videos YouTube',meta:2,feito:0,cor:'youtube_wpp'},
+    {id:'mv6',rotulo:'Acoes de Engagement',meta:4,feito:0,cor:'tema'},
+  ],
+  itensCalendario:[
+    {id:'ic1', data:'2026-06-15',titulo:'Carrossel Recepcionista IA',tipo:'insta_face',observacao:'',status:'feito',responsavel:'',estagio:''},
+    {id:'ic2', data:'2026-06-16',titulo:'Post sobre estabilidade do Deli no Dia dos Namorados',tipo:'campanha',observacao:'Pago e organico.',status:'feito',responsavel:'',estagio:''},
+    {id:'ic3', data:'2026-06-18',titulo:'Story do blog: Dia da Gastronomia Sustentavel',tipo:'blog',observacao:'',status:'feito',responsavel:'',estagio:''},
+    {id:'ic4', data:'2026-06-18',titulo:'Republicacao LinkedIn: blog sustentabilidade',tipo:'linkedin',observacao:'',status:'feito',responsavel:'',estagio:''},
+    {id:'ic5', data:'2026-06-19',titulo:'Reels Copa + gestao',tipo:'insta_face',observacao:'Organico e pago.',status:'agendado',responsavel:'',estagio:''},
+    {id:'ic6', data:'2026-06-22',titulo:'Carrossel Copa + Delivery Proprio (figurinha)',tipo:'campanha',observacao:'',status:'planejado',responsavel:'',estagio:''},
+    {id:'ic10',data:'2026-06-23',titulo:'O efeito Copa no seu restaurante',tipo:'blog',observacao:'Tendencia. Tambem vai pro LinkedIn em 24/06.',status:'planejado',responsavel:'Ana',estagio:'Escrevendo'},
+    {id:'ic11',data:'2026-06-24',titulo:'LinkedIn: Copa no restaurante (blog)',tipo:'linkedin',observacao:'Republicacao do texto de Copa.',status:'planejado',responsavel:'Ana',estagio:'Escrevendo'},
+    {id:'ic12',data:'2026-06-25',titulo:'Agentes de IA no WhatsApp',tipo:'blog',observacao:'Gestao. LinkedIn sai na semana seguinte.',status:'planejado',responsavel:'Ana',estagio:'Escrevendo'},
+    {id:'ic7', data:'2026-06-24',titulo:'Card Dia de Sao Joao com oferta do Arraia',tipo:'campanha',observacao:'',status:'planejado',responsavel:'',estagio:''},
+    {id:'ic8', data:'2026-06-26',titulo:'Reels Recepcionista IA (gravado pelo time)',tipo:'insta_face',observacao:'',status:'planejado',responsavel:'',estagio:''},
+    {id:'ic9', data:'2026-06-29',titulo:'Nhoque da Fortuna - abre o financeiro',tipo:'insta_face',observacao:'',status:'planejado',responsavel:'',estagio:''},
+    {id:'ic13',data:'2026-07-01',titulo:'LinkedIn: Agentes de IA no WhatsApp (blog)',tipo:'linkedin',observacao:'Republicacao do texto de Agentes de IA.',status:'planejado',responsavel:'Ana',estagio:'Escrevendo'},
+    {id:'ic14',data:'2026-07-03',titulo:'Reels gestao financeira: dor + Deli como solucao',tipo:'campanha',observacao:'Foco no dono de restaurante que nao fica direto na operacao. Estrutura: dor primeiro, o Deli como solucao depois.',status:'planejado',responsavel:'Ana',estagio:'Escrevendo'},
+  ],
+  faixasSemana:[
+    {id:'fs1',inicio:'2026-06-01',fim:'2026-06-06',texto:'Calendario Junho + Incentivo App'},
+    {id:'fs2',inicio:'2026-06-07',fim:'2026-06-13',texto:'Campanha Junina + Dia dos Namorados'},
+    {id:'fs3',inicio:'2026-06-14',fim:'2026-06-20',texto:'Campanha Junina + Jornada do Cliente + Inicio do Inverno'},
+    {id:'fs4',inicio:'2026-06-21',fim:'2026-06-27',texto:'Dia de Sao Joao + Jornada do Cliente + Conteudo Colaborativo'},
+    {id:'fs5',inicio:'2026-06-28',fim:'2026-07-04',texto:'Fechamento de Junho + Abertura de Julho'},
+  ],
+  notasIdeias:[
+    {id:'ni1',titulo:'Ideias de conteudo informativo',itens:['Novidades do sistema','Dados combinados com datas','Dicas de gestao','Calendario gastronomico']},
+    {id:'ni2',titulo:'Ideias de conteudo estrategico',itens:['Funcionalidades Deli','Vantagens','Proposta de valor']},
+  ],
+  snapshots:[],
+  baseline:[
+    {id:'b1',rotulo:'Alcance medio por post (Instagram)',valor:''},
+    {id:'b2',rotulo:'Seguidores Instagram',valor:''},
+    {id:'b3',rotulo:'Seguidores LinkedIn',valor:''},
+    {id:'b4',rotulo:'Trafego mensal do Blog',valor:''},
+    {id:'b5',rotulo:'Leads / Conversoes (mes)',valor:''},
+    {id:'b6',rotulo:'Taxa de retencao de clientes',valor:''},
+    {id:'b7',rotulo:'NPS / CSAT',valor:''},
+  ],
+};
+
+// ── CORES ────────────────────────────────────────────────────────────────────
+
+const TIPO = {
+  insta_face: {label:'Instagram / Facebook',bg:'#BFDBFE',text:'#1e3a5f'},
+  campanha:   {label:'Campanha',            bg:'#FED7AA',text:'#7c2d12'},
+  ebook:      {label:'E-book',              bg:'#FECACA',text:'#7f1d1d'},
+  blog:       {label:'Blog',                bg:'#E9D5FF',text:'#4c1d95'},
+  linkedin:   {label:'LinkedIn',            bg:'#BBF7D0',text:'#14532d'},
+  youtube_wpp:{label:'YouTube / WhatsApp',  bg:'#1D4ED8',text:'#ffffff'},
+  tema:       {label:'Tema da semana',      bg:'#BAE6FD',text:'#0c4a6e'},
+};
+const S_CFG = {
+  a_fazer:  {label:'A fazer',   bg:'#F1F5F9',text:'#475569'},
+  fazendo:  {label:'Fazendo',   bg:'#FFEDD5',text:'#c2410c'},
+  concluido:{label:'Concluido', bg:'#DCFCE7',text:'#15803d'},
+};
+const P_CFG = {
+  alta: {label:'Alta', bg:'#FEE2E2',text:'#b91c1c'},
+  media:{label:'Media',bg:'#FEF3C7',text:'#b45309'},
+  baixa:{label:'Baixa',bg:'#F1F5F9',text:'#64748b'},
+};
+const RESP = {
+  Ana:     {inicial:'A', bg:'#DBEAFE', text:'#1e40af'},
+  Barbara: {inicial:'B', bg:'#FCE7F3', text:'#9d174d'},
+  Renata:  {inicial:'R', bg:'#D1FAE5', text:'#065f46'},
+};
+const ESTAGIO_LISTA = ['Escrevendo','Desenhando','Gravando','Produzindo','Revisao','Ajustes','Aprovado'];
+const ESTAGIO_CFG = {
+  Escrevendo: {bg:'#EDE9FE',text:'#5b21b6'},
+  Desenhando: {bg:'#FEF3C7',text:'#92400e'},
+  Gravando:   {bg:'#FEE2E2',text:'#991b1b'},
+  Produzindo: {bg:'#FFEDD5',text:'#c2410c'},
+  Revisao:    {bg:'#E0F2FE',text:'#075985'},
+  Ajustes:    {bg:'#F0FDF4',text:'#166534'},
+  Aprovado:   {bg:'#DCFCE7',text:'#15803d'},
+};
+const BRAND = '#F04E23';
+const MESES=['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DSEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sab'];
+const RESP_NOMES = Object.keys(RESP);
+
+// ── UTILS ────────────────────────────────────────────────────────────────────
+
+let _n=0;
+function uid(){return 'u'+(++_n)+Date.now();}
+function pad(n){return String(n).padStart(2,'0');}
+function isoDate(y,m,d){return y+'-'+pad(m+1)+'-'+pad(d);}
+function todayIso(){var d=new Date();return isoDate(d.getFullYear(),d.getMonth(),d.getDate());}
+function addDays(n){var d=new Date();d.setDate(d.getDate()+n);return isoDate(d.getFullYear(),d.getMonth(),d.getDate());}
+function fmtDate(iso){return new Date(iso+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});}
+
+function monthMatrix(year,month){
+  var first=new Date(year,month,1).getDay();
+  var last=new Date(year,month+1,0).getDate();
+  var days=[];
+  for(var i=0;i<first;i++){var d=new Date(year,month,-first+i+1);days.push({date:isoDate(d.getFullYear(),d.getMonth(),d.getDate()),day:d.getDate(),inMonth:false});}
+  for(var d2=1;d2<=last;d2++)days.push({date:isoDate(year,month,d2),day:d2,inMonth:true});
+  while(days.length%7!==0){var idx=days.length-last-first;var d3=new Date(year,month+1,idx+1);days.push({date:isoDate(d3.getFullYear(),d3.getMonth(),d3.getDate()),day:d3.getDate(),inMonth:false});}
+  var weeks=[];
+  for(var j=0;j<days.length;j+=7)weeks.push(days.slice(j,j+7));
+  return weeks;
+}
+
+// ── CONTEXT ───────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY='deli_marketing_v3';
+const Ctx=createContext(null);
+
+function load(){
+  try{
+    var r=localStorage.getItem(STORAGE_KEY);
+    if(r) return JSON.parse(r);
+  }catch(e){}
+  return seedData;
+}
+
+function AppProvider(props){
+  const [data,setData]=useState(null);
+
+  useEffect(function(){
+    if(!sb)return;
+    var alive=true;
+    sb.from('agenda').select('data').eq('id',ROW_ID).maybeSingle().then(function(res){
+      if(!alive)return;
+      if(res.error){ console.error('Supabase:',res.error); return; }
+      if(res.data&&res.data.data){ setData(res.data.data); }
+      else{ var inicial=load(); sb.from('agenda').upsert({id:ROW_ID,data:inicial}).then(function(){}); setData(inicial); } // 1a vez: migra o que ja existia neste navegador
+    });
+    var channel=sb.channel('agenda-'+ROW_ID)
+      .on('postgres_changes',{event:'*',schema:'public',table:'agenda',filter:'id=eq.'+ROW_ID},function(payload){
+        if(payload.new&&payload.new.data) setData(payload.new.data);
+      })
+      .subscribe();
+    return function(){ alive=false; sb.removeChannel(channel); };
+  },[]);
+
+  function commit(nd){ if(sb){ sb.from('agenda').upsert({id:ROW_ID,data:nd}).then(function(r){ if(r.error) console.error(r.error); }); } return nd; }
+  function upd(fn){ setData(function(d){ return commit(fn(Object.assign({},d))); }); }
+  var ctx={
+    data:data,
+    addTarefa:    function(t){upd(function(d){return Object.assign({},d,{tarefas:d.tarefas.concat([Object.assign({},t,{id:uid()})])});});},
+    updateTarefa: function(t){upd(function(d){return Object.assign({},d,{tarefas:d.tarefas.map(function(x){return x.id===t.id?t:x;})});});},
+    deleteTarefa: function(id){upd(function(d){return Object.assign({},d,{tarefas:d.tarefas.filter(function(x){return x.id!==id;})});});},
+    addItemCal:   function(i){upd(function(d){return Object.assign({},d,{itensCalendario:d.itensCalendario.concat([Object.assign({},i,{id:uid()})])});});},
+    updateItemCal:function(i){upd(function(d){return Object.assign({},d,{itensCalendario:d.itensCalendario.map(function(x){return x.id===i.id?i:x;})});});},
+    deleteItemCal:function(id){upd(function(d){return Object.assign({},d,{itensCalendario:d.itensCalendario.filter(function(x){return x.id!==id;})});});},
+    incrementMeta:function(id,delta){upd(function(d){return Object.assign({},d,{metasVolume:d.metasVolume.map(function(m){return m.id===id?Object.assign({},m,{feito:Math.max(0,m.feito+delta)}):m;})});});},
+    addFaixa:     function(f){upd(function(d){return Object.assign({},d,{faixasSemana:d.faixasSemana.concat([Object.assign({},f,{id:uid()})])});});},
+    updateFaixa:  function(f){upd(function(d){return Object.assign({},d,{faixasSemana:d.faixasSemana.map(function(x){return x.id===f.id?f:x;})});});},
+    deleteFaixa:  function(id){upd(function(d){return Object.assign({},d,{faixasSemana:d.faixasSemana.filter(function(x){return x.id!==id;})});});},
+    addNota:      function(n){upd(function(d){return Object.assign({},d,{notasIdeias:d.notasIdeias.concat([Object.assign({},n,{id:uid()})])});});},
+    updateNota:   function(n){upd(function(d){return Object.assign({},d,{notasIdeias:d.notasIdeias.map(function(x){return x.id===n.id?n:x;})});});},
+    deleteNota:   function(id){upd(function(d){return Object.assign({},d,{notasIdeias:d.notasIdeias.filter(function(x){return x.id!==id;})});});},
+    updateBaseline:function(items){upd(function(d){return Object.assign({},d,{baseline:items});});},
+    addSnapshot:  function(s){upd(function(d){return Object.assign({},d,{snapshots:d.snapshots.concat([Object.assign({},s,{id:uid()})])});});},
+    exportJSON:function(){
+      var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url;a.download='deli-backup-'+todayIso()+'.json';a.click();
+      URL.revokeObjectURL(url);
+    },
+    importJSON:function(json){ var nd=JSON.parse(json); commit(nd); setData(nd); },
+    resetToSeed:function(){ if(confirm('Restaurar o conteudo inicial? Os dados atuais serao perdidos.')){ commit(seedData); setData(seedData); } },
+  };
+  if(data===null){
+    return html`<div class="min-h-screen flex items-center justify-center text-gray-400 text-sm">Carregando agenda da nuvem...</div>`;
+  }
+  return html`<${Ctx.Provider} value=${ctx}>${props.children}</${Ctx.Provider}>`;
+}
+function useApp(){return useContext(Ctx);}
+
+// ── ATOMICOS ──────────────────────────────────────────────────────────────────
+
+function Pill(props){
+  return html`<span style=${{background:props.bg,color:props.text}} class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap">${props.children}</span>`;
+}
+function SPill(props){var c=S_CFG[props.v]||S_CFG.a_fazer;return html`<${Pill} bg=${c.bg} text=${c.text}>${c.label}</${Pill}>`;}
+function PPill(props){var c=P_CFG[props.v]||P_CFG.media;return html`<${Pill} bg=${c.bg} text=${c.text}>${c.label}</${Pill}>`;}
+
+function RespChip(props){
+  var v=props.v;
+  if(!v||!RESP[v])return null;
+  var r=RESP[v];
+  return html`<span style=${{background:r.bg,color:r.text}} class="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold shrink-0" title=${v}>${r.inicial}</span>`;
+}
+function EstagioPill(props){
+  var v=props.v;
+  if(!v||!ESTAGIO_CFG[v])return null;
+  var c=ESTAGIO_CFG[v];
+  return html`<span style=${{background:c.bg,color:c.text}} class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap">${v}</span>`;
+}
+
+function Overlay(props){
+  return html`<div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick=${props.onClick}>${props.children}</div>`;
+}
+
+// ── MODAL TAREFA ──────────────────────────────────────────────────────────────
+
+function TarefaModal(props){
+  var tarefa=props.tarefa, areas=props.areas, onSave=props.onSave, onClose=props.onClose;
+  var blank={titulo:'',areaId:areas[0]?areas[0].id:'',grupo:'',status:'a_fazer',prioridade:'media',responsavel:'',estagio:'',observacoes:'',proximosPassos:'',prazo:'',tags:[]};
+  var init=tarefa?Object.assign({},tarefa):blank;
+  const [f,setF]=useState(init);
+  function s(k,v){setF(function(x){return Object.assign({},x,{[k]:v});});}
+  var inp='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none';
+  return html`<${Overlay} onClick=${onClose}>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick=${function(e){e.stopPropagation();}}>
+      <div class="p-6 space-y-3">
+        <h2 class="text-base font-semibold text-gray-900">${tarefa?'Editar tarefa':'Nova tarefa'}</h2>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Titulo</label>
+          <input class=${inp} value=${f.titulo} onInput=${function(e){s('titulo',e.target.value);}} autoFocus/>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Area</label>
+            <select class=${inp} value=${f.areaId} onChange=${function(e){s('areaId',e.target.value);}}>
+              ${areas.map(function(a){return html`<option key=${a.id} value=${a.id}>${a.nome}</option>`;})}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Grupo</label>
+            <input class=${inp} value=${f.grupo||''} onInput=${function(e){s('grupo',e.target.value);}} placeholder="ex: Criar"/>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Status</label>
+            <select class=${inp} value=${f.status} onChange=${function(e){s('status',e.target.value);}}>
+              <option value="a_fazer">A fazer</option>
+              <option value="fazendo">Fazendo</option>
+              <option value="concluido">Concluido</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Prioridade</label>
+            <select class=${inp} value=${f.prioridade} onChange=${function(e){s('prioridade',e.target.value);}}>
+              <option value="alta">Alta</option>
+              <option value="media">Media</option>
+              <option value="baixa">Baixa</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Responsavel</label>
+            <select class=${inp} value=${f.responsavel||''} onChange=${function(e){s('responsavel',e.target.value);}}>
+              <option value="">Sem responsavel</option>
+              ${RESP_NOMES.map(function(r){return html`<option key=${r} value=${r}>${r}</option>`;})}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Estagio</label>
+            <select class=${inp} value=${f.estagio||''} onChange=${function(e){s('estagio',e.target.value);}}>
+              <option value="">Sem estagio</option>
+              ${ESTAGIO_LISTA.map(function(e){return html`<option key=${e} value=${e}>${e}</option>`;})}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Prazo</label>
+          <input type="date" class=${inp} value=${f.prazo||''} onChange=${function(e){s('prazo',e.target.value);}}/>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Observacoes</label>
+          <textarea class=${inp+' resize-none'} rows="3" onInput=${function(e){s('observacoes',e.target.value);}}>${f.observacoes}</textarea>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Proximos passos</label>
+          <textarea class=${inp+' resize-none'} rows="3" onInput=${function(e){s('proximosPassos',e.target.value);}}>${f.proximosPassos}</textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button onClick=${onClose} class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">Cancelar</button>
+          <button onClick=${function(){onSave(f);onClose();}} disabled=${!f.titulo.trim()} class="px-4 py-2 text-sm text-white rounded-xl transition-colors disabled:opacity-40" style=${{background:BRAND}}>Salvar</button>
+        </div>
+      </div>
+    </div>
+  </${Overlay}>`;
+}
+
+// ── MODAL ITEM CALENDARIO ─────────────────────────────────────────────────────
+
+function ItemCalModal(props){
+  var data=props.data, item=props.item, onSave=props.onSave, onDelete=props.onDelete, onClose=props.onClose;
+  var init=item?Object.assign({},item):{data:data,titulo:'',tipo:'insta_face',observacao:'',status:'planejado',responsavel:'',estagio:''};
+  const [f,setF]=useState(init);
+  function s(k,v){setF(function(x){return Object.assign({},x,{[k]:v});});}
+  var inp='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none';
+  var fmt=new Date(data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+  return html`<${Overlay} onClick=${onClose}>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick=${function(e){e.stopPropagation();}}>
+      <div class="p-6 space-y-3">
+        <p class="text-xs text-gray-400 capitalize">${fmt}</p>
+        <h2 class="text-base font-semibold text-gray-900">${item?'Editar item':'Novo item de conteudo'}</h2>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Titulo</label>
+          <input class=${inp} value=${f.titulo} onInput=${function(e){s('titulo',e.target.value);}} autoFocus/>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Tipo</label>
+            <select class=${inp} value=${f.tipo} onChange=${function(e){s('tipo',e.target.value);}}>
+              ${Object.keys(TIPO).filter(function(k){return k!=='tema';}).map(function(k){return html`<option key=${k} value=${k}>${TIPO[k].label}</option>`;})}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Status</label>
+            <select class=${inp} value=${f.status||'planejado'} onChange=${function(e){s('status',e.target.value);}}>
+              <option value="planejado">Planejado</option>
+              <option value="agendado">Agendado</option>
+              <option value="feito">Feito</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Responsavel</label>
+            <select class=${inp} value=${f.responsavel||''} onChange=${function(e){s('responsavel',e.target.value);}}>
+              <option value="">Sem responsavel</option>
+              ${RESP_NOMES.map(function(r){return html`<option key=${r} value=${r}>${r}</option>`;})}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Estagio</label>
+            <select class=${inp} value=${f.estagio||''} onChange=${function(e){s('estagio',e.target.value);}}>
+              <option value="">Sem estagio</option>
+              ${ESTAGIO_LISTA.map(function(e){return html`<option key=${e} value=${e}>${e}</option>`;})}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 block mb-1">Observacao</label>
+          <textarea class=${inp+' resize-none'} rows="2" onInput=${function(e){s('observacao',e.target.value);}}>${f.observacao||''}</textarea>
+        </div>
+        <div class="flex justify-between pt-2">
+          <div>${item&&onDelete?html`<button onClick=${function(){onDelete();onClose();}} class="text-sm text-red-500 hover:text-red-700 px-2 py-1 rounded-lg hover:bg-red-50">Excluir</button>`:''}</div>
+          <div class="flex gap-2">
+            <button onClick=${onClose} class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Cancelar</button>
+            <button onClick=${function(){onSave(f);onClose();}} disabled=${!f.titulo.trim()} class="px-4 py-2 text-sm text-white rounded-xl disabled:opacity-40" style=${{background:BRAND}}>Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </${Overlay}>`;
+}
+
+// ── MODAL FAIXA ───────────────────────────────────────────────────────────────
+
+function FaixaModal(props){
+  var faixa=props.faixa, onSave=props.onSave, onDelete=props.onDelete, onClose=props.onClose;
+  const [texto,setTexto]=useState(faixa?faixa.texto:'');
+  const [inicio,setInicio]=useState(faixa?faixa.inicio:'');
+  const [fim,setFim]=useState(faixa?faixa.fim:'');
+  var inp='w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none';
+  return html`<${Overlay} onClick=${onClose}>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-3" onClick=${function(e){e.stopPropagation();}}>
+      <h2 class="text-base font-semibold">Tema da semana</h2>
+      <input class=${inp} value=${texto} onInput=${function(e){setTexto(e.target.value);}} autoFocus/>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-500 block mb-1">Inicio</label><input type="date" class=${inp} value=${inicio} onChange=${function(e){setInicio(e.target.value);}}/></div>
+        <div><label class="text-xs text-gray-500 block mb-1">Fim</label><input type="date" class=${inp} value=${fim} onChange=${function(e){setFim(e.target.value);}}/></div>
+      </div>
+      <div class="flex justify-between pt-2">
+        <div>${faixa&&onDelete?html`<button onClick=${function(){onDelete();onClose();}} class="text-sm text-red-500 hover:text-red-700 px-2 py-1 rounded-lg hover:bg-red-50">Excluir</button>`:''}</div>
+        <div class="flex gap-2">
+          <button onClick=${onClose} class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Cancelar</button>
+          <button onClick=${function(){onSave(Object.assign({},faixa||{},{texto:texto,inicio:inicio,fim:fim}));onClose();}} disabled=${!texto.trim()} class="px-4 py-2 text-sm text-white rounded-xl disabled:opacity-40" style=${{background:BRAND}}>Salvar</button>
+        </div>
+      </div>
+    </div>
+  </${Overlay}>`;
+}
+
+// ── NOTA EDIT ─────────────────────────────────────────────────────────────────
+
+function NotaEdit(props){
+  var nota=props.nota, onSave=props.onSave, onCancel=props.onCancel, onDelete=props.onDelete;
+  const [titulo,setTitulo]=useState(nota.titulo);
+  const [itens,setItens]=useState(nota.itens.join('\n'));
+  var inp='w-full text-xs border border-yellow-200 rounded px-2 py-1 outline-none bg-white/80';
+  return html`<div class="space-y-2">
+    <input class=${inp} value=${titulo} onInput=${function(e){setTitulo(e.target.value);}}/>
+    <textarea class=${inp+' resize-none'} rows="4" onInput=${function(e){setItens(e.target.value);}}>${itens}</textarea>
+    <div class="flex justify-between">
+      <button onClick=${onDelete} class="text-xs text-red-400 hover:text-red-600">Excluir</button>
+      <div class="flex gap-2">
+        <button onClick=${onCancel} class="text-xs text-gray-400">Cancelar</button>
+        <button onClick=${function(){onSave(Object.assign({},nota,{titulo:titulo,itens:itens.split('\n').filter(Boolean)}));}} class="text-xs text-yellow-700 font-medium">Salvar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── TAREFA CARD ───────────────────────────────────────────────────────────────
+
+function TarefaCard(props){
+  var tarefa=props.tarefa, onEdit=props.onEdit, onDelete=props.onDelete;
+  var app=useApp();
+  const [open,setOpen]=useState(false);
+  const [editObs,setEditObs]=useState(false);
+  const [editPP,setEditPP]=useState(false);
+  var done=tarefa.status==='concluido';
+
+  return html`<div class=${('bg-white border rounded-xl p-3 ')+(done?'opacity-55':'')}>
+    <div class="flex items-start gap-2">
+      <input type="checkbox" class="mt-0.5 rounded shrink-0 cursor-pointer" checked=${done}
+        onChange=${function(e){app.updateTarefa(Object.assign({},tarefa,{status:e.target.checked?'concluido':'a_fazer'}));}}/>
+      <button class="flex-1 text-sm text-left leading-snug text-gray-800 min-w-0" onClick=${function(){setOpen(function(o){return !o;});}}>
+        <span class=${done?'line-through text-gray-400':''}>${tarefa.titulo}</span>
+      </button>
+      <div class="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+        <${RespChip} v=${tarefa.responsavel}/>
+        <${EstagioPill} v=${tarefa.estagio}/>
+        <${SPill} v=${tarefa.status}/>
+        <${PPill} v=${tarefa.prioridade}/>
+        ${tarefa.prazo?html`<span class="text-xs text-gray-400">${fmtDate(tarefa.prazo)}</span>`:''}
+        <button onClick=${onEdit} class="p-1 text-gray-300 hover:text-orange-500 rounded transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828A2 2 0 0110 16H8v-2a2 2 0 01.586-1.414z"/></svg>
+        </button>
+        <button onClick=${onDelete} class="p-1 text-gray-300 hover:text-red-500 rounded transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    ${open?html`<div class="mt-3 ml-5 space-y-2">
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-medium text-gray-500">Observacoes</span>
+          <button class="text-xs" style=${{color:BRAND}} onClick=${function(){setEditObs(function(e){return !e;});}}>${editObs?'Fechar':'Editar'}</button>
+        </div>
+        ${editObs
+          ?html`<textarea class="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 resize-none outline-none" rows="3"
+              onBlur=${function(e){app.updateTarefa(Object.assign({},tarefa,{observacoes:e.target.value}));}}
+              defaultValue=${tarefa.observacoes}></textarea>`
+          :html`<p class="text-xs text-gray-600 whitespace-pre-wrap">${tarefa.observacoes||html`<span class="italic text-gray-400">Vazio</span>`}</p>`
+        }
+      </div>
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-medium text-gray-500">Proximos passos</span>
+          <button class="text-xs" style=${{color:BRAND}} onClick=${function(){setEditPP(function(e){return !e;});}}>${editPP?'Fechar':'Editar'}</button>
+        </div>
+        ${editPP
+          ?html`<textarea class="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 resize-none outline-none" rows="3"
+              onBlur=${function(e){app.updateTarefa(Object.assign({},tarefa,{proximosPassos:e.target.value}));}}
+              defaultValue=${tarefa.proximosPassos}></textarea>`
+          :html`<p class="text-xs text-gray-600 whitespace-pre-wrap">${tarefa.proximosPassos||html`<span class="italic text-gray-400">Vazio</span>`}</p>`
+        }
+      </div>
+    </div>`:''}
+  </div>`;
+}
+
+// ── AREA BLOCK ────────────────────────────────────────────────────────────────
+
+function AreaBlock(props){
+  var areaId=props.areaId, nome=props.nome, tarefas=props.tarefas, pct=props.pct;
+  var collapsed=props.collapsed, onToggle=props.onToggle;
+  var onAddTarefa=props.onAddTarefa, onEditTarefa=props.onEditTarefa, onDeleteTarefa=props.onDeleteTarefa;
+  var ORDER=['Rodando agora','Pendencias','Criar','Futuras','Curto prazo','Estrutural','Newsletter de Novidades','Novidades do Sistema','Canal Oficial','Estrutura','Planejamento','Entregaveis recorrentes','Estrategia','Execucao','Benchmark','Analise','Entregavel','Live Controle Financeiro','Roadmap Multicanal','CRM e Comunicacao Direta'];
+  var grupos=Array.from(new Set(tarefas.map(function(t){return t.grupo||'';}))).sort(function(a,b){var ia=ORDER.indexOf(a),ib=ORDER.indexOf(b);if(ia>=0&&ib>=0)return ia-ib;return a.localeCompare(b);});
+
+  return html`<div class="bg-gray-50 rounded-2xl border border-gray-100">
+    <button class="w-full flex items-center justify-between p-4 text-left" onClick=${onToggle}>
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="font-medium text-gray-800 truncate">${nome}</span>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <div class="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div class="h-full rounded-full bg-green-400" style=${{width:pct+'%'}}/>
+          </div>
+          <span class="text-xs text-gray-400">${pct}%</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="text-xs text-gray-400">${tarefas.length} tarefa${tarefas.length!==1?'s':''}</span>
+        <svg class=${('w-4 h-4 text-gray-400 transition-transform ')+(collapsed?'':'rotate-180')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </div>
+    </button>
+    ${!collapsed?html`<div class="px-4 pb-4 space-y-4">
+      ${grupos.map(function(grupo){
+        var gts=tarefas.filter(function(t){return (t.grupo||'')===grupo;});
+        return html`<div key=${grupo}>
+          ${grupo?html`<p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">${grupo}</p>`:''}
+          <div class="space-y-2">
+            ${gts.map(function(t){return html`<${TarefaCard} key=${t.id} tarefa=${t} onEdit=${function(){onEditTarefa(t);}} onDelete=${function(){onDeleteTarefa(t.id);}}/>`;})}
+          </div>
+        </div>`;
+      })}
+      <button onClick=${onAddTarefa} class="text-xs flex items-center gap-1 mt-1 hover:opacity-70" style=${{color:BRAND}}>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Adicionar tarefa
+      </button>
+    </div>`:''}
+  </div>`;
+}
+
+// ── AGENDA ────────────────────────────────────────────────────────────────────
+
+function Agenda(){
+  var app=useApp();
+  var data=app.data, addTarefa=app.addTarefa, updateTarefa=app.updateTarefa, deleteTarefa=app.deleteTarefa;
+  const [fArea,setFArea]=useState('');
+  const [fStat,setFStat]=useState('');
+  const [fPrio,setFPrio]=useState('');
+  const [fResp,setFResp]=useState('');
+  const [fEst,setFEst]=useState('');
+  const [busca,setBusca]=useState('');
+  const [modal,setModal]=useState(null);
+  const [col,setCol]=useState({});
+
+  var marketing=data.areas.filter(function(a){return a.tipo==='marketing';}).sort(function(a,b){return a.ordem-b.ordem;});
+  var engagement=data.areas.filter(function(a){return a.tipo==='engagement';}).sort(function(a,b){return a.ordem-b.ordem;});
+
+  function tarefasDaArea(areaId){
+    return data.tarefas.filter(function(t){
+      if(t.areaId!==areaId)return false;
+      if(fStat&&t.status!==fStat)return false;
+      if(fPrio&&t.prioridade!==fPrio)return false;
+      if(fResp&&t.responsavel!==fResp)return false;
+      if(fEst&&t.estagio!==fEst)return false;
+      if(busca&&t.titulo.toLowerCase().indexOf(busca.toLowerCase())<0)return false;
+      return true;
+    });
+  }
+  function pctArea(areaId){
+    var ts=data.tarefas.filter(function(t){return t.areaId===areaId;});
+    if(!ts.length)return 0;
+    return Math.round(ts.filter(function(t){return t.status==='concluido';}).length/ts.length*100);
+  }
+  function toggleCol(id){setCol(function(s){var n=Object.assign({},s);n[id]=!n[id];return n;});}
+
+  var sel='border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none';
+  var showEngagement=!fArea||engagement.some(function(a){return a.id===fArea;});
+
+  return html`<div class="p-6 max-w-4xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold text-gray-900">Agenda</h1>
+      <button onClick=${function(){setModal({tarefa:null});}} class="flex items-center gap-1.5 px-4 py-2 text-white text-sm rounded-xl transition-colors" style=${{background:BRAND}}>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Nova tarefa
+      </button>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-6">
+      <input class=${sel+' w-44'} placeholder="Buscar..." value=${busca} onInput=${function(e){setBusca(e.target.value);}}/>
+      <select class=${sel} value=${fArea} onChange=${function(e){setFArea(e.target.value);}}>
+        <option value="">Todas as areas</option>
+        ${data.areas.map(function(a){return html`<option key=${a.id} value=${a.id}>${a.nome}</option>`;})}
+      </select>
+      <select class=${sel} value=${fStat} onChange=${function(e){setFStat(e.target.value);}}>
+        <option value="">Todos os status</option>
+        <option value="a_fazer">A fazer</option>
+        <option value="fazendo">Fazendo</option>
+        <option value="concluido">Concluido</option>
+      </select>
+      <select class=${sel} value=${fPrio} onChange=${function(e){setFPrio(e.target.value);}}>
+        <option value="">Todas as prioridades</option>
+        <option value="alta">Alta</option>
+        <option value="media">Media</option>
+        <option value="baixa">Baixa</option>
+      </select>
+      <select class=${sel} value=${fResp} onChange=${function(e){setFResp(e.target.value);}}>
+        <option value="">Todos os responsaveis</option>
+        ${RESP_NOMES.map(function(r){return html`<option key=${r} value=${r}>${r}</option>`;})}
+      </select>
+      <select class=${sel} value=${fEst} onChange=${function(e){setFEst(e.target.value);}}>
+        <option value="">Todos os estagios</option>
+        ${ESTAGIO_LISTA.map(function(e){return html`<option key=${e} value=${e}>${e}</option>`;})}
+      </select>
+    </div>
+
+    <div class="space-y-3 mb-8">
+      ${marketing.filter(function(a){return !fArea||a.id===fArea;}).map(function(a){return html`<${AreaBlock} key=${a.id}
+        areaId=${a.id} nome=${a.nome}
+        tarefas=${tarefasDaArea(a.id)} pct=${pctArea(a.id)}
+        collapsed=${!!col[a.id]} onToggle=${function(){toggleCol(a.id);}}
+        onAddTarefa=${function(){setModal({tarefa:null,defaultArea:a.id});}}
+        onEditTarefa=${function(t){setModal({tarefa:t});}}
+        onDeleteTarefa=${function(id){deleteTarefa(id);}}/>`;})}
+    </div>
+
+    ${showEngagement?html`<div>
+      <div class="flex items-center gap-3 mb-3">
+        <div class="h-px flex-1 bg-gray-200"/>
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide px-2">Atividades adicionais (corte primeiro se apertar)</span>
+        <div class="h-px flex-1 bg-gray-200"/>
+      </div>
+      <div class="space-y-3 opacity-75">
+        ${engagement.filter(function(a){return !fArea||a.id===fArea;}).map(function(a){return html`<${AreaBlock} key=${a.id}
+          areaId=${a.id} nome=${a.nome}
+          tarefas=${tarefasDaArea(a.id)} pct=${pctArea(a.id)}
+          collapsed=${!!col[a.id]} onToggle=${function(){toggleCol(a.id);}}
+          onAddTarefa=${function(){setModal({tarefa:null,defaultArea:a.id});}}
+          onEditTarefa=${function(t){setModal({tarefa:t});}}
+          onDeleteTarefa=${function(id){deleteTarefa(id);}}/>`;})}
+      </div>
+    </div>`:''}
+
+    ${modal?html`<${TarefaModal}
+      tarefa=${modal.tarefa}
+      areas=${data.areas}
+      onSave=${function(f){
+        if(modal.tarefa&&modal.tarefa.id)updateTarefa(Object.assign({},f,{id:modal.tarefa.id}));
+        else addTarefa(Object.assign({},f,{areaId:f.areaId||(modal.defaultArea||data.areas[0].id)}));
+      }}
+      onClose=${function(){setModal(null);}}/>`:''}
+  </div>`;
+}
+
+// ── CALENDARIO ────────────────────────────────────────────────────────────────
+
+function CalItemChip(props){
+  var item=props.item, onClick=props.onClick;
+  var tipo=TIPO[item.tipo]||{bg:'#eee',text:'#333'};
+  var feito=item.status==='feito';
+  var agendado=item.status==='agendado';
+  return html`<div
+    onClick=${onClick}
+    style=${{background:tipo.bg,color:tipo.text,opacity:feito?0.6:1}}
+    class="text-xs px-1.5 py-0.5 rounded-full leading-snug cursor-pointer flex items-center gap-1">
+    ${feito?html`<svg class="w-2.5 h-2.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>`:''}
+    ${agendado?html`<span class="shrink-0 font-bold text-xs">*</span>`:''}
+    ${item.responsavel&&RESP[item.responsavel]?html`<span style=${{background:RESP[item.responsavel].bg,color:RESP[item.responsavel].text}} class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-xs font-bold shrink-0">${RESP[item.responsavel].inicial}</span>`:''}
+    <span class="truncate" style=${{textDecoration:feito?'line-through':'none'}}>${item.titulo}</span>
+  </div>`;
+}
+
+function Calendario(){
+  var app=useApp();
+  var data=app.data, addItemCal=app.addItemCal, updateItemCal=app.updateItemCal, deleteItemCal=app.deleteItemCal;
+  var addFaixa=app.addFaixa, updateFaixa=app.updateFaixa, deleteFaixa=app.deleteFaixa;
+  var addNota=app.addNota, updateNota=app.updateNota, deleteNota=app.deleteNota;
+  var today=new Date();
+  const [year,setYear]=useState(today.getFullYear());
+  const [month,setMonth]=useState(today.getMonth());
+  const [selDia,setSelDia]=useState(null);
+  const [selItem,setSelItem]=useState(null);
+  const [faixaMod,setFaixaMod]=useState(null);
+  const [notaEdit,setNotaEdit]=useState(null);
+  const [addingNota,setAddingNota]=useState(false);
+  const [nTit,setNTit]=useState('');
+  const [nItens,setNItens]=useState('');
+
+  var weeks=monthMatrix(year,month);
+  var todayStr=todayIso();
+
+  function prev(){if(month===0){setYear(function(y){return y-1;});setMonth(11);}else setMonth(function(m){return m-1;});}
+  function next(){if(month===11){setYear(function(y){return y+1;});setMonth(0);}else setMonth(function(m){return m+1;});}
+  function itensDia(date){return data.itensCalendario.filter(function(i){return i.data===date;});}
+  function faixaDaSemana(semana){
+    var first=semana.find(function(d){return d.inMonth;});
+    if(!first)return null;
+    return data.faixasSemana.find(function(f){return f.inicio<=first.date&&first.date<=f.fim;})||null;
+  }
+
+  var campanhasAtivas=data.tarefas.filter(function(t){return t.areaId==='ads'&&t.status==='fazendo';});
+
+  return html`<div class="p-6 max-w-6xl mx-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-2xl font-bold text-gray-900">Calendario de Conteudo</h1>
+      <div class="flex items-center gap-2">
+        <button onClick=${prev} class="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <span class="text-base font-semibold text-gray-800 w-48 text-center">${MESES[month]} ${year}</span>
+        <button onClick=${next} class="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+
+    ${campanhasAtivas.length?html`<div class="mb-4 px-4 py-2 rounded-xl flex items-center gap-3 flex-wrap" style=${{background:'#FFF3EE',border:'1px solid '+BRAND}}>
+      <span class="text-xs font-bold" style=${{color:BRAND}}>Campanhas no ar</span>
+      ${campanhasAtivas.map(function(t){return html`<span key=${t.id} class="text-xs font-medium px-2 py-0.5 rounded-full text-white" style=${{background:BRAND}}>${t.titulo}</span>`;})}
+    </div>`:''}
+
+    <div class="flex flex-wrap gap-2 mb-4">
+      ${Object.keys(TIPO).filter(function(k){return k!=='tema';}).map(function(k){return html`
+        <span key=${k} style=${{background:TIPO[k].bg,color:TIPO[k].text}} class="text-xs px-2 py-0.5 rounded-full font-medium">${TIPO[k].label}</span>`;})}
+      <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-yellow-100 text-yellow-800">Notas</span>
+      <span class="text-gray-300 mx-1 text-xs">|</span>
+      ${RESP_NOMES.map(function(r){return html`<span key=${r} style=${{background:RESP[r].bg,color:RESP[r].text}} class="text-xs px-2 py-0.5 rounded-full font-medium">${r}</span>`;})}
+    </div>
+
+    <div class="flex gap-5">
+      <div class="flex-1 min-w-0">
+        <div class="grid grid-cols-7 mb-1">
+          ${DSEM.map(function(d){return html`<div key=${d} class="text-center text-xs font-semibold text-gray-400 py-1">${d}</div>`;})}
+        </div>
+        <div class="space-y-1.5">
+          ${weeks.map(function(semana,wi){
+            var faixa=faixaDaSemana(semana);
+            var firstIn=semana.find(function(d){return d.inMonth;});
+            return html`<div key=${wi}>
+              ${faixa
+                ?html`<div class="mb-1 group relative">
+                  <div style=${{background:'#BAE6FD',color:'#0c4a6e'}} class="text-xs font-semibold px-3 py-1 rounded-lg text-center">${faixa.texto}</div>
+                  <button onClick=${function(){setFaixaMod(faixa);}} class="absolute right-2 top-0.5 opacity-0 group-hover:opacity-100 text-sky-500 hover:text-sky-700 text-xs transition-opacity">editar</button>
+                </div>`
+                :html`<div class="mb-1 h-7 flex items-center justify-center">
+                  ${firstIn?html`<button onClick=${function(){setFaixaMod({_new:true,inicio:firstIn.date,fim:semana[6].date,texto:''}); }}
+                    class="text-xs text-gray-300 hover:text-sky-400 transition-colors">+ tema da semana</button>`:''}
+                </div>`
+              }
+              <div class="grid grid-cols-7 gap-1">
+                ${semana.map(function(cell){
+                  var date=cell.date, day=cell.day, inMonth=cell.inMonth;
+                  var isToday=date===todayStr;
+                  var itens=itensDia(date);
+                  var cellClass='min-h-[80px] rounded-xl border p-1.5 cursor-pointer transition-colors '
+                    +(inMonth?'bg-white hover:bg-orange-50 border-gray-100':'bg-gray-50/60 border-gray-50')
+                    +(isToday?' border-orange-300 ring-1 ring-orange-200':'');
+                  var dayClass='text-xs font-medium mb-1 '+(isToday?'text-orange-600':inMonth?'text-gray-700':'text-gray-300');
+                  return html`<div key=${date}
+                    onClick=${function(){setSelDia(date);setSelItem(null);}}
+                    class=${cellClass}>
+                    <div class=${dayClass}>${day}</div>
+                    <div class="space-y-0.5">
+                      ${itens.map(function(item){return html`<${CalItemChip} key=${item.id} item=${item} onClick=${function(e){e.stopPropagation();setSelDia(date);setSelItem(item);}}/>`;})}
+                    </div>
+                  </div>`;
+                })}
+              </div>
+            </div>`;
+          })}
+        </div>
+      </div>
+
+      <div class="w-52 shrink-0 space-y-3">
+        <p class="text-sm font-semibold text-gray-700">Notas e ideias</p>
+        ${data.notasIdeias.map(function(nota){return html`<div key=${nota.id} style=${{background:'#fefce8',border:'1px solid #fde68a'}} class="rounded-xl p-3">
+          ${notaEdit===nota.id
+            ?html`<${NotaEdit} nota=${nota} onSave=${function(n){updateNota(n);setNotaEdit(null);}} onCancel=${function(){setNotaEdit(null);}} onDelete=${function(){deleteNota(nota.id);setNotaEdit(null);}}/>`
+            :html`<div>
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-semibold text-yellow-800">${nota.titulo}</p>
+                <button onClick=${function(){setNotaEdit(nota.id);}} class="text-yellow-500 hover:text-yellow-700">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828A2 2 0 0110 16H8v-2a2 2 0 01.586-1.414z"/></svg>
+                </button>
+              </div>
+              <ul class="space-y-1">
+                ${nota.itens.map(function(item,i){return html`<li key=${i} class="text-xs text-yellow-900 flex items-start gap-1"><span class="text-yellow-400 mt-0.5">*</span>${item}</li>`;})}
+              </ul>
+            </div>`
+          }
+        </div>`;})}
+        ${addingNota
+          ?html`<div style=${{background:'#fefce8',border:'1px solid #fde68a'}} class="rounded-xl p-3 space-y-2">
+            <input class="w-full text-xs border border-yellow-200 rounded px-2 py-1 outline-none bg-white/80" placeholder="Titulo" value=${nTit} onInput=${function(e){setNTit(e.target.value);}}/>
+            <textarea class="w-full text-xs border border-yellow-200 rounded px-2 py-1 resize-none outline-none bg-white/80" rows="3" placeholder="Itens (um por linha)" onInput=${function(e){setNItens(e.target.value);}}>${nItens}</textarea>
+            <div class="flex gap-2">
+              <button class="text-xs text-yellow-700 font-medium" onClick=${function(){addNota({titulo:nTit,itens:nItens.split('\n').filter(Boolean)});setAddingNota(false);setNTit('');setNItens('');}}>Salvar</button>
+              <button class="text-xs text-gray-400" onClick=${function(){setAddingNota(false);}}>Cancelar</button>
+            </div>
+          </div>`
+          :html`<button onClick=${function(){setAddingNota(true);}} class="text-xs text-yellow-600 hover:text-yellow-800 flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Adicionar nota
+          </button>`
+        }
+      </div>
+    </div>
+
+    ${selDia?html`<${ItemCalModal} data=${selDia} item=${selItem}
+      onSave=${function(f){if(f.id)updateItemCal(f);else addItemCal(Object.assign({},f,{data:selDia}));}}
+      onDelete=${selItem?function(){deleteItemCal(selItem.id);}:null}
+      onClose=${function(){setSelDia(null);setSelItem(null);}}/>`:''}
+
+    ${faixaMod!==null?html`<${FaixaModal}
+      faixa=${faixaMod._new?null:faixaMod}
+      onSave=${function(f){if(faixaMod._new||!faixaMod.id)addFaixa(f);else updateFaixa(Object.assign({},faixaMod,f));}}
+      onDelete=${faixaMod.id?function(){deleteFaixa(faixaMod.id);}:null}
+      onClose=${function(){setFaixaMod(null);}}/>`:''}
+  </div>`;
+}
+
+// ── HOJE ──────────────────────────────────────────────────────────────────────
+
+function Hoje(){
+  var app=useApp();
+  var data=app.data, incrementMeta=app.incrementMeta;
+  var dow=new Date().getDay();
+  var wStart=addDays(-dow);
+  var wEnd=addDays(6-dow);
+  var in7=addDays(7);
+
+  var proxPassos=data.tarefas.filter(function(t){return t.status!=='concluido'&&(t.proximosPassos.trim()||(t.prazo&&t.prazo<=in7));});
+  var estaSemana=data.tarefas.filter(function(t){return t.status!=='concluido'&&t.prazo&&t.prazo>=wStart&&t.prazo<=wEnd;});
+  var calSemana=data.itensCalendario.filter(function(i){return i.data>=wStart&&i.data<=wEnd;});
+  var altaPrio=data.tarefas.filter(function(t){return t.status!=='concluido'&&t.prioridade==='alta';});
+  var totalMeta=data.metasVolume.reduce(function(a,m){return a+m.meta;},0);
+  var totalFeito=data.metasVolume.reduce(function(a,m){return a+m.feito;},0);
+  var cadencia=totalMeta>0?Math.round(totalFeito/totalMeta*100):0;
+  function areaName(id){var a=data.areas.find(function(a){return a.id===id;});return a?a.nome:id;}
+
+  return html`<div class="p-6 max-w-4xl mx-auto space-y-6">
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-center gap-3">
+      <span class="text-amber-500 text-lg font-bold">!</span>
+      <p class="text-sm text-amber-800 font-medium">Marketing e o piso. Se apertar, corte no engagement, nunca nos minimos de marketing.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <section>
+        <h2 class="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-orange-400 inline-block"/>Proximos passos
+        </h2>
+        ${proxPassos.length===0
+          ?html`<p class="text-sm text-gray-400 italic">Nenhum proximo passo registrado.</p>`
+          :html`<div class="space-y-2">
+            ${proxPassos.slice(0,8).map(function(t){return html`<div key=${t.id} class="bg-white border border-gray-100 rounded-xl p-3">
+              <div class="flex items-start justify-between gap-2 mb-1">
+                <span class="text-sm text-gray-800 leading-snug flex-1">${t.titulo}</span>
+                <div class="flex items-center gap-1 shrink-0">
+                  <${RespChip} v=${t.responsavel}/>
+                  <${SPill} v=${t.status}/>
+                </div>
+              </div>
+              ${t.proximosPassos?html`<p class="text-xs rounded-lg px-2 py-1 mt-1 whitespace-pre-wrap" style=${{color:'#c2410c',background:'#fff7ed'}}>${t.proximosPassos}</p>`:''}
+              ${t.prazo?html`<p class="text-xs text-gray-400 mt-1">Prazo: ${new Date(t.prazo+'T12:00:00').toLocaleDateString('pt-BR')}</p>`:''}
+            </div>`;})}
+            ${proxPassos.length>8?html`<p class="text-xs text-gray-400">+ ${proxPassos.length-8} mais</p>`:''}
+          </div>`
+        }
+      </section>
+
+      <section>
+        <h2 class="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-purple-400 inline-block"/>Esta semana
+        </h2>
+        ${estaSemana.length===0&&calSemana.length===0
+          ?html`<p class="text-sm text-gray-400 italic">Nada com prazo esta semana.</p>`
+          :html`<div class="space-y-2">
+            ${estaSemana.map(function(t){return html`<div key=${t.id} class="bg-white border border-gray-100 rounded-xl p-3 flex items-center justify-between gap-2">
+              <span class="text-sm text-gray-800 flex-1 leading-snug">${t.titulo}</span>
+              <div class="flex gap-1 items-center shrink-0">
+                <${RespChip} v=${t.responsavel}/>
+                <${PPill} v=${t.prioridade}/>
+                ${t.prazo?html`<span class="text-xs text-gray-400">${fmtDate(t.prazo)}</span>`:''}
+              </div>
+            </div>`;})}
+            ${calSemana.length>0?html`<div>
+              <p class="text-xs font-medium text-gray-500 mt-3 mb-1">Conteudo agendado</p>
+              ${calSemana.map(function(i){return html`<div key=${i.id} class="flex items-center gap-2 text-sm text-gray-700 py-0.5">
+                <span class="text-xs text-gray-400">${fmtDate(i.data)}</span>
+                <${RespChip} v=${i.responsavel}/>
+                <span class="flex-1">${i.titulo}</span>
+                ${i.status==='feito'?html`<span class="text-xs text-green-500">feito</span>`:i.status==='agendado'?html`<span class="text-xs text-orange-500">agendado</span>`:''}
+              </div>`;})}
+            </div>`:''}
+          </div>`
+        }
+      </section>
+
+      <section class="md:col-span-2">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-gray-800 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-green-400 inline-block"/>Metas do mes
+          </h2>
+          <span class="text-sm text-gray-500">Cadencia geral: <strong>${cadencia}%</strong></span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          ${data.metasVolume.map(function(m){
+            var pct=m.meta>0?Math.min(100,Math.round(m.feito/m.meta*100)):0;
+            var barColor=pct>=100?'#4ade80':pct>=50?BRAND:'#fbbf24';
+            return html`<div key=${m.id} class="bg-white border border-gray-100 rounded-xl p-3">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm text-gray-700 font-medium">${m.rotulo}</span>
+                <span class="text-sm font-bold text-gray-900">${m.feito}/${m.meta}</span>
+              </div>
+              <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
+                <div class="h-full rounded-full" style=${{width:pct+'%',background:barColor}}/>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-gray-400">${pct}%</span>
+                <div class="flex gap-1">
+                  <button onClick=${function(){incrementMeta(m.id,-1);}} class="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-bold flex items-center justify-center">-</button>
+                  <button onClick=${function(){incrementMeta(m.id,1);}} class="w-6 h-6 rounded-full text-white text-sm font-bold flex items-center justify-center" style=${{background:BRAND}}>+</button>
+                </div>
+              </div>
+            </div>`;
+          })}
+        </div>
+      </section>
+
+      <section class="md:col-span-2">
+        <h2 class="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-red-400 inline-block"/>Alta prioridade pendente
+        </h2>
+        ${altaPrio.length===0
+          ?html`<p class="text-sm text-gray-400 italic">Nenhuma tarefa de alta prioridade pendente.</p>`
+          :html`<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            ${altaPrio.map(function(t){return html`<div key=${t.id} class="bg-red-50 border border-red-100 rounded-xl p-3 flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="text-sm text-gray-800 leading-snug">${t.titulo}</p>
+                <p class="text-xs text-gray-500 mt-0.5">${areaName(t.areaId)}</p>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <${RespChip} v=${t.responsavel}/>
+                <${SPill} v=${t.status}/>
+              </div>
+            </div>`;})}
+          </div>`
+        }
+      </section>
+    </div>
+  </div>`;
+}
+
+// ── METRICAS ─────────────────────────────────────────────────────────────────
+
+function Metricas(){
+  var app=useApp();
+  var data=app.data, updateBaseline=app.updateBaseline, addSnapshot=app.addSnapshot;
+  const [notas,setNotas]=useState('');
+  const [checks,setChecks]=useState({});
+  var totalMeta=data.metasVolume.reduce(function(a,m){return a+m.meta;},0);
+  var totalFeito=data.metasVolume.reduce(function(a,m){return a+m.feito;},0);
+  var cadencia=totalMeta>0?Math.round(totalFeito/totalMeta*100):0;
+  var checklist=[
+    'Revisar cadencia de entregaveis de marketing',
+    'Revisar cadencia de acoes de engagement',
+    'Comparar metricas com baseline e periodo anterior',
+    'Registrar o que funcionou e o que nao funcionou',
+    'Definir ajustes para o proximo periodo',
+    'Atualizar o baseline com os novos numeros',
+  ];
+  var inp='border border-gray-200 rounded-lg px-3 py-1.5 text-sm w-40 outline-none';
+  var barColor=cadencia>=100?'#4ade80':cadencia>=70?BRAND:'#fbbf24';
+
+  return html`<div class="p-6 max-w-3xl mx-auto space-y-8">
+    <h1 class="text-2xl font-bold text-gray-900">Metricas e Governanca</h1>
+
+    <section class="bg-white border border-gray-100 rounded-2xl p-5">
+      <h2 class="text-base font-semibold text-gray-800 mb-4">Cadencia de entregaveis do mes</h2>
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm text-gray-600">Entregaveis publicados</span>
+        <span class="text-xl font-bold text-gray-900">${cadencia}%</span>
+      </div>
+      <div class="w-full h-3 bg-gray-100 rounded-full overflow-hidden mb-1">
+        <div class="h-full rounded-full" style=${{width:Math.min(100,cadencia)+'%',background:barColor}}/>
+      </div>
+      <p class="text-xs text-gray-400 mb-4">Meta: 100% de cumprimento</p>
+      <div class="space-y-2">
+        ${data.metasVolume.map(function(m){
+          var pct=m.meta>0?Math.min(100,Math.round(m.feito/m.meta*100)):0;
+          var bc=pct>=100?'#4ade80':pct>=50?BRAND:'#fbbf24';
+          return html`<div key=${m.id} class="flex items-center gap-3">
+            <span class="text-sm text-gray-700 w-40 shrink-0">${m.rotulo}</span>
+            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" style=${{width:pct+'%',background:bc}}/>
+            </div>
+            <span class="text-sm text-gray-600 w-12 text-right shrink-0">${m.feito}/${m.meta}</span>
+          </div>`;
+        })}
+      </div>
+    </section>
+
+    <section class="bg-white border border-gray-100 rounded-2xl p-5">
+      <h2 class="text-base font-semibold text-gray-800 mb-1">Baseline de metricas</h2>
+      <p class="text-xs text-gray-500 mb-4">Sem baseline voce nao consegue provar se algo caiu. Preencha antes de comecar qualquer acao.</p>
+      <div class="space-y-3">
+        ${data.baseline.map(function(b){return html`<div key=${b.id} class="flex items-center gap-3">
+          <label class="text-sm text-gray-700 flex-1">${b.rotulo}</label>
+          <input class=${inp} value=${b.valor} onInput=${function(e){updateBaseline(data.baseline.map(function(x){return x.id===b.id?Object.assign({},x,{valor:e.target.value}):x;}));}} placeholder="ex: 1.200"/>
+        </div>`;})}
+      </div>
+    </section>
+
+    <section class="bg-white border border-gray-100 rounded-2xl p-5">
+      <h2 class="text-base font-semibold text-gray-800 mb-1">Report quinzenal</h2>
+      <p class="text-xs text-gray-500 mb-4">1 pagina comparando cadencia cumprida e principais metricas versus o periodo anterior.</p>
+      <div class="bg-gray-50 rounded-xl p-4 mb-4">
+        <p class="text-sm font-medium text-gray-700 mb-2">Checklist</p>
+        <ul class="space-y-1.5">
+          ${checklist.map(function(item,i){return html`<li key=${i} class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer" onClick=${function(){setChecks(function(c){var n=Object.assign({},c);n[i]=!n[i];return n;});}}>
+            <span class=${('w-4 h-4 rounded border flex items-center justify-center text-xs shrink-0 transition-colors ')+(checks[i]?'text-white':'border-gray-300')} style=${checks[i]?{background:BRAND,borderColor:BRAND}:{}}>${checks[i]?'v':''}</span>
+            <span class=${checks[i]?'line-through text-gray-400':''}>${item}</span>
+          </li>`;})}
+        </ul>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Notas da quinzena</label>
+        <textarea class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none outline-none" rows="4"
+          placeholder="Principais aprendizados, ajustes e proximos passos..." onInput=${function(e){setNotas(e.target.value);}}>${notas}</textarea>
+      </div>
+      <button onClick=${function(){addSnapshot({data:todayIso(),cadenciaCumprida:cadencia,notas:notas});setNotas('');setChecks({});}}
+        class="px-4 py-2 text-white text-sm rounded-xl transition-colors" style=${{background:BRAND}}>
+        Fechar quinzena (salvar snapshot)
+      </button>
+    </section>
+
+    ${data.snapshots.length>0?html`<section class="bg-white border border-gray-100 rounded-2xl p-5">
+      <h2 class="text-base font-semibold text-gray-800 mb-4">Historico de quinzenas</h2>
+      <div class="space-y-3">
+        ${data.snapshots.slice().sort(function(a,b){return b.data.localeCompare(a.data);}).map(function(s){return html`<div key=${s.id} class="border border-gray-100 rounded-xl p-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-medium text-gray-700">${new Date(s.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</span>
+            <span class=${('text-sm font-bold ')+(s.cadenciaCumprida>=80?'text-green-600':'text-amber-600')}>${s.cadenciaCumprida}% cadencia</span>
+          </div>
+          ${s.notas?html`<p class="text-xs text-gray-600 whitespace-pre-wrap">${s.notas}</p>`:''}
+        </div>`;})}
+      </div>
+    </section>`:''}
+  </div>`;
+}
+
+// ── APP SHELL ─────────────────────────────────────────────────────────────────
+
+var TELAS=[
+  {id:'hoje',label:'Visao Geral'},
+  {id:'agenda',label:'Agenda'},
+  {id:'calendario',label:'Calendario'},
+  {id:'metricas',label:'Metricas'},
+];
+
+function AppShell(){
+  var app=useApp();
+  var u=useContext(UserCtx);
+  const [tela,setTela]=useState('hoje');
+  const importRef=useRef(null);
+
+  function handleImport(e){
+    var file=e.target.files&&e.target.files[0];
+    if(!file)return;
+    var r=new FileReader();
+    r.onload=function(ev){try{app.importJSON(ev.target.result);alert('Importado com sucesso.');}catch(err){alert('Arquivo invalido.');}};
+    r.readAsText(file);
+    e.target.value='';
+  }
+
+  return html`<div class="min-h-screen bg-gray-50">
+    <nav class="bg-white border-b border-gray-100 sticky top-0 z-40">
+      <div class="max-w-6xl mx-auto px-6 flex items-center justify-between h-14">
+        <div class="flex items-center gap-5">
+          <span class="font-bold tracking-tight flex items-center gap-2">
+            <span class="text-white text-sm font-bold px-2 py-0.5 rounded-lg" style=${{background:BRAND,letterSpacing:'0.08em'}}>DELI</span>
+            <span class="text-gray-600 font-normal text-sm">Marketing</span>
+          </span>
+          <div class="flex gap-0.5">
+            ${TELAS.map(function(t){
+              var ativo=tela===t.id;
+              return html`<button key=${t.id} onClick=${function(){setTela(t.id);}}
+                class=${('px-3 py-1.5 text-sm rounded-lg transition-colors font-medium ')+(ativo?'text-white':'text-gray-500 hover:text-gray-800 hover:bg-gray-50')}
+                style=${ativo?{background:BRAND}:{}}>
+                ${t.label}
+              </button>`;
+            })}
+          </div>
+        </div>
+        <div class="flex items-center gap-1">
+          <button onClick=${app.exportJSON} class="text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">Exportar JSON</button>
+          <button onClick=${function(){importRef.current&&importRef.current.click();}} class="text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">Importar JSON</button>
+          <button onClick=${app.resetToSeed} class="text-xs text-gray-400 hover:text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors">Restaurar conteudo inicial</button>
+          <input ref=${importRef} type="file" accept=".json" class="hidden" onChange=${handleImport}/>
+          ${u?html`<span class="w-px h-5 bg-gray-200 mx-1"></span>
+            <span class="text-xs text-gray-400 hidden md:inline" title=${u.user.email}>${(u.user.email||'').split('@')[0]}</span>
+            <button onClick=${u.logout} class="text-xs text-gray-500 hover:text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors">Sair</button>`:''}
+        </div>
+      </div>
+    </nav>
+    <main>
+      ${tela==='hoje'?html`<${Hoje}/>`:''}
+      ${tela==='agenda'?html`<${Agenda}/>`:''}
+      ${tela==='calendario'?html`<${Calendario}/>`:''}
+      ${tela==='metricas'?html`<${Metricas}/>`:''}
+    </main>
+  </div>`;
+}
+
+// ── LOGIN / ACESSO ───────────────────────────────────────────────────────────
+
+function LoginScreen(props){
+  const [email,setEmail]=useState('');
+  var inp='w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-gray-400';
+  function submit(e){ e.preventDefault(); props.onSend(email); }
+  return html`<div class="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+    <div class="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-sm p-8 text-center">
+      <span class="text-white text-lg font-bold px-3 py-1 rounded-lg inline-block mb-5" style=${{background:BRAND,letterSpacing:'0.08em'}}>DELI</span>
+      <h1 class="text-lg font-semibold text-gray-900 mb-1">Marketing</h1>
+      ${props.sent
+        ?html`<p class="text-sm text-gray-600 mt-4">Enviamos um link de acesso para <strong>${props.sentTo}</strong>. Abra seu email e clique no link para entrar.</p>
+          <button onClick=${props.onReset} class="text-xs mt-5 hover:underline" style=${{color:BRAND}}>Usar outro email</button>`
+        :html`<div>
+          <p class="text-sm text-gray-500 mb-6">Acesso restrito ao time. Digite seu email de trabalho para receber um link de acesso.</p>
+          <form onSubmit=${submit} class="space-y-3">
+            <input class=${inp} type="email" placeholder="voce@empresa.com" value=${email} onInput=${function(e){setEmail(e.target.value);}} autoFocus/>
+            <button type="submit" disabled=${props.loading||!email.trim()} class="w-full text-white text-sm font-medium rounded-xl px-4 py-2.5 transition-colors disabled:opacity-40" style=${{background:BRAND}}>
+              ${props.loading?'Enviando...':'Receber link de acesso'}
+            </button>
+          </form>
+        </div>`
+      }
+      ${props.erro?html`<p class="text-xs text-red-500 mt-4">${props.erro}</p>`:''}
+    </div>
+  </div>`;
+}
+
+function ConfigScreen(){
+  return html`<div class="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+    <div class="bg-white rounded-2xl shadow border border-gray-100 max-w-md p-8">
+      <h1 class="text-lg font-semibold text-gray-900 mb-2">Falta configurar o Supabase</h1>
+      <p class="text-sm text-gray-600 mb-3">Abra este arquivo e preencha o <code class="bg-gray-100 px-1 rounded">SUPABASE_URL</code>, a <code class="bg-gray-100 px-1 rounded">SUPABASE_ANON_KEY</code> e a lista <code class="bg-gray-100 px-1 rounded">ALLOWED_EMAILS</code> no topo do bloco de script, seguindo o passo a passo.</p>
+      <p class="text-xs text-gray-400">Enquanto isso, o login e a sincronizacao ficam desativados.</p>
+    </div>
+  </div>`;
+}
+
+function AuthGate(props){
+  const [session,setSession]=useState(undefined); // undefined=carregando, null=deslogado, obj=logado
+  const [sent,setSent]=useState(false);
+  const [sentTo,setSentTo]=useState('');
+  const [loading,setLoading]=useState(false);
+  const [erro,setErro]=useState('');
+
+  useEffect(function(){
+    sb.auth.getSession().then(function(r){ setSession(r.data.session); });
+    var res=sb.auth.onAuthStateChange(function(_e,s){ setSession(s); });
+    return function(){ res.data.subscription.unsubscribe(); };
+  },[]);
+
+  function send(email){
+    setErro('');
+    var e=(email||'').trim().toLowerCase();
+    if(!emailAutorizado(e)){ setErro('Este email nao esta autorizado. Fale com a Ana.'); return; }
+    setLoading(true);
+    sb.auth.signInWithOtp({email:e,options:{emailRedirectTo:window.location.href}}).then(function(r){
+      setLoading(false);
+      if(r.error){ setErro('Erro ao enviar: '+r.error.message); }
+      else{ setSentTo(e); setSent(true); }
+    });
+  }
+  function logout(){ sb.auth.signOut(); }
+
+  if(session===undefined){
+    return html`<div class="min-h-screen flex items-center justify-center text-gray-400 text-sm">Carregando...</div>`;
+  }
+  if(!session){
+    return html`<${LoginScreen} onSend=${send} onReset=${function(){setSent(false);setErro('');}} sent=${sent} sentTo=${sentTo} loading=${loading} erro=${erro}/>`;
+  }
+  if(!emailAutorizado(session.user.email)){
+    return html`<div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 text-center">
+      <p class="text-sm text-gray-600 mb-4">O email <strong>${session.user.email}</strong> nao esta autorizado.</p>
+      <button onClick=${logout} class="text-sm text-white rounded-xl px-4 py-2" style=${{background:BRAND}}>Sair</button>
+    </div>`;
+  }
+  return html`<${UserCtx.Provider} value=${{user:session.user,logout:logout}}>${props.children}</${UserCtx.Provider}>`;
+}
+
+function App(){
+  if(!CONFIG_OK){ return html`<${ConfigScreen}/>`; }
+  return html`<${AuthGate}><${AppProvider}><${AppShell}/></${AppProvider}></${AuthGate}>`;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${App}/>`);
+</script>
+</body>
+</html>
