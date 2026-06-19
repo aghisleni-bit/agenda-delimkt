@@ -40,7 +40,9 @@ const CONFIG_OK = SUPABASE_URL.indexOf("COLE_AQUI") < 0 && SUPABASE_ANON_KEY.ind
 const ROW_ID = "deli"; // linha unica compartilhada pelo time
 let sb=null;
 if(CONFIG_OK){
-  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { flowType: 'implicit', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true }
+  });
 }
 function emailAutorizado(e){
   return ALLOWED_EMAILS.map(function(x){return x.toLowerCase();}).indexOf((e||'').trim().toLowerCase())>=0;
