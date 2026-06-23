@@ -29,12 +29,15 @@ const html = htm.bind(React.createElement);
 const SUPABASE_URL      = "https://kjxhnhscwioyuawscmle.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_2BLCWjTV2isxmDjotPTRnQ_5rOdlw2F";
 
-// 2) Os 3 emails do Workspace que podem entrar (tudo minusculo).
-const ALLOWED_EMAILS = [
-  "aghisleni@deli.com.br",   // Ana
-  "bbronzatti@deli.com.br",  // Barbara
-  "rcorrea@deli.com.br",     // Renata
+// 2) Os usuarios do time: nome, email e senha (definidos aqui no codigo).
+//    As senhas ficam visiveis no codigo-fonte — use senhas so para este app.
+const USERS = [
+  { nome:"Ana",     email:"aghisleni@deli.com.br",  senha:"K7m#9Q" },
+  { nome:"Barbara", email:"bbronzatti@deli.com.br", senha:"K7m#9Q" },
+  { nome:"Renata",  email:"rcorrea@deli.com.br",    senha:"K7m#9Q" },
+  { nome:"Karina",  email:"kcoelho@deli.com.br",    senha:"K7m#9Q" },
 ];
+const ALLOWED_EMAILS = USERS.map(function(u){return u.email;});
 
 const CONFIG_OK = SUPABASE_URL.indexOf("COLE_AQUI") < 0 && SUPABASE_ANON_KEY.indexOf("COLE_AQUI") < 0;
 const ROW_ID = "deli"; // linha unica compartilhada pelo time
@@ -1189,25 +1192,21 @@ function AppShell(){
 
 function LoginScreen(props){
   const [email,setEmail]=useState('');
+  const [senha,setSenha]=useState('');
   var inp='w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-gray-400';
-  function submit(e){ e.preventDefault(); props.onSend(email); }
+  function submit(e){ e.preventDefault(); props.onLogin(email,senha); }
   return html`<div class="min-h-screen flex items-center justify-center bg-gray-50 p-6">
     <div class="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-sm p-8 text-center">
       <span class="text-white text-lg font-bold px-3 py-1 rounded-lg inline-block mb-5" style=${{background:BRAND,letterSpacing:'0.08em'}}>DELI</span>
       <h1 class="text-lg font-semibold text-gray-900 mb-1">Marketing</h1>
-      ${props.sent
-        ?html`<p class="text-sm text-gray-600 mt-4">Enviamos um link de acesso para <strong>${props.sentTo}</strong>. Abra seu email e clique no link para entrar.</p>
-          <button onClick=${props.onReset} class="text-xs mt-5 hover:underline" style=${{color:BRAND}}>Usar outro email</button>`
-        :html`<div>
-          <p class="text-sm text-gray-500 mb-6">Acesso restrito ao time. Digite seu email de trabalho para receber um link de acesso.</p>
-          <form onSubmit=${submit} class="space-y-3">
-            <input class=${inp} type="email" placeholder="voce@empresa.com" value=${email} onInput=${function(e){setEmail(e.target.value);}} autoFocus/>
-            <button type="submit" disabled=${props.loading||!email.trim()} class="w-full text-white text-sm font-medium rounded-xl px-4 py-2.5 transition-colors disabled:opacity-40" style=${{background:BRAND}}>
-              ${props.loading?'Enviando...':'Receber link de acesso'}
-            </button>
-          </form>
-        </div>`
-      }
+      <p class="text-sm text-gray-500 mb-6">Acesso restrito ao time. Entre com seu email e senha.</p>
+      <form onSubmit=${submit} class="space-y-3">
+        <input class=${inp} type="email" placeholder="voce@deli.com.br" value=${email} onInput=${function(e){setEmail(e.target.value);}} autoFocus/>
+        <input class=${inp} type="password" placeholder="Senha" value=${senha} onInput=${function(e){setSenha(e.target.value);}}/>
+        <button type="submit" disabled=${props.loading||!email.trim()||!senha} class="w-full text-white text-sm font-medium rounded-xl px-4 py-2.5 transition-colors disabled:opacity-40" style=${{background:BRAND}}>
+          ${props.loading?'Entrando...':'Entrar'}
+        </button>
+      </form>
       ${props.erro?html`<p class="text-xs text-red-500 mt-4">${props.erro}</p>`:''}
     </div>
   </div>`;
@@ -1224,44 +1223,23 @@ function ConfigScreen(){
 }
 
 function AuthGate(props){
-  const [session,setSession]=useState(undefined); // undefined=carregando, null=deslogado, obj=logado
-  const [sent,setSent]=useState(false);
-  const [sentTo,setSentTo]=useState('');
-  const [loading,setLoading]=useState(false);
+  const [user,setUser]=useState(function(){ try{ var s=localStorage.getItem('deli_auth'); return s?JSON.parse(s):null; }catch(e){ return null; } });
   const [erro,setErro]=useState('');
 
-  useEffect(function(){
-    sb.auth.getSession().then(function(r){ setSession(r.data.session); });
-    var res=sb.auth.onAuthStateChange(function(_e,s){ setSession(s); });
-    return function(){ res.data.subscription.unsubscribe(); };
-  },[]);
-
-  function send(email){
-    setErro('');
+  function entrar(email,senha){
     var e=(email||'').trim().toLowerCase();
-    if(!emailAutorizado(e)){ setErro('Este email nao esta autorizado. Fale com a Ana.'); return; }
-    setLoading(true);
-    sb.auth.signInWithOtp({email:e,options:{emailRedirectTo:window.location.href}}).then(function(r){
-      setLoading(false);
-      if(r.error){ setErro('Erro ao enviar: '+r.error.message); }
-      else{ setSentTo(e); setSent(true); }
-    });
+    var u=USERS.find(function(x){ return x.email.toLowerCase()===e; });
+    if(!u || u.senha!==senha){ setErro('Email ou senha incorretos.'); return; }
+    var info={ email:u.email, nome:u.nome };
+    try{ localStorage.setItem('deli_auth', JSON.stringify(info)); }catch(e2){}
+    setErro(''); setUser(info);
   }
-  function logout(){ sb.auth.signOut(); }
+  function logout(){ try{ localStorage.removeItem('deli_auth'); }catch(e){} setUser(null); }
 
-  if(session===undefined){
-    return html`<div class="min-h-screen flex items-center justify-center text-gray-400 text-sm">Carregando...</div>`;
+  if(!user){
+    return html`<${LoginScreen} onLogin=${entrar} erro=${erro}/>`;
   }
-  if(!session){
-    return html`<${LoginScreen} onSend=${send} onReset=${function(){setSent(false);setErro('');}} sent=${sent} sentTo=${sentTo} loading=${loading} erro=${erro}/>`;
-  }
-  if(!emailAutorizado(session.user.email)){
-    return html`<div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 text-center">
-      <p class="text-sm text-gray-600 mb-4">O email <strong>${session.user.email}</strong> nao esta autorizado.</p>
-      <button onClick=${logout} class="text-sm text-white rounded-xl px-4 py-2" style=${{background:BRAND}}>Sair</button>
-    </div>`;
-  }
-  return html`<${UserCtx.Provider} value=${{user:session.user,logout:logout}}>${props.children}</${UserCtx.Provider}>`;
+  return html`<${UserCtx.Provider} value=${{user:user,logout:logout}}>${props.children}</${UserCtx.Provider}>`;
 }
 
 function App(){
